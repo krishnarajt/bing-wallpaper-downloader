@@ -30,14 +30,13 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/bing-wallpaper-downloader:git-${{ github.sha }}
           
-      - run: |
-          sed -i \
-            "s|ghcr.io/.*/bing-wallpaper-downloader:[^ ]*|ghcr.io/${{ github.repository_owner }}/bing-wallpaper-downloader:git-${{ github.sha }}|" \
-            k8s/base/deployment.yaml
+      # - run: |
+      #     sed -i \
+      #       "s|ghcr.io/.*/bing-wallpaper-downloader:[^ ]*|ghcr.io/${{ github.repository_owner }}/bing-wallpaper-downloader:git-${{ github.sha }}|" \
+      #       k8s/base/deployment.yaml
 
       - run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add k8s/base/deployment.yaml
           git commit -m "chore(deploy): bing-wallpaper-downloader git-${{ github.sha }}"
           git push
