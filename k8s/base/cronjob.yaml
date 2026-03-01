@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bing-wallpaper
+spec:
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: bing-wallpaper
+              image: ghcr.io/krishnarajt/bing-wallpaper-downloader:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MARKET
+                  value: "en-US"
+                - name: OUTPUT_DIR
+                  value: "/wallpapers"
+              volumeMounts:
+                - name: wallpaper-storage
+                  mountPath: /wallpapers
+          volumes:
+            - name: wallpaper-storage
+              hostPath:
+                path: /srv/bing-wallpaper
+                type: DirectoryOrCreate

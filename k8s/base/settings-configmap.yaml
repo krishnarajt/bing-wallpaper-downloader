@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bing-wallpaper-settings
+data:
+  triggerSchedule: "0 */6 * * *"
+  hostStoragePath: "/srv/bing-wallpaper"

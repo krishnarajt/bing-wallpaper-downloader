@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cronjob.yaml
+  - settings-configmap.yaml
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: bing-wallpaper-settings
+      fieldPath: data.triggerSchedule
+    targets:
+      - select:
+          kind: CronJob
+          name: bing-wallpaper
+        fieldPaths:
+          - spec.schedule
+  - source:
+      kind: ConfigMap
+      name: bing-wallpaper-settings
+      fieldPath: data.hostStoragePath
+    targets:
+      - select:
+          kind: CronJob
+          name: bing-wallpaper
+        fieldPaths:
+          - spec.jobTemplate.spec.template.spec.volumes.0.hostPath.path
