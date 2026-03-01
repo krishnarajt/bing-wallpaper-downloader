@@ -13,7 +13,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: bing-wallpaper
-              image: ghcr.io/krishnarajt/bing-wallpaper-downloader:latest
+              image: ghcr.io/krishnarajt/bing-wallpaper-downloader:git-d6fcd409678c0519a2e02dce0488bcc3729e72c4
               imagePullPolicy: IfNotPresent
               env:
                 - name: MARKET
