@@ -3,6 +3,7 @@ set -e
 
 MARKET=${MARKET:-en-IN}
 OUTPUT_DIR=${OUTPUT_DIR:-/wallpapers}
+MIN_SIZE=100000  # 100KB minimum to consider valid
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -11,36 +12,62 @@ API_URL="https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=1&mkt=$MARKE
 echo "Fetching Bing metadata..."
 JSON=$(wget -qO- "$API_URL")
 
-# Extract image path from JSON
-IMG_PATH=$(echo "$JSON" | grep -o '"url":"[^"]*' | head -n1 | cut -d'"' -f4)
+# More robust extraction using the url field before urlbase
+IMG_PATH=$(echo "$JSON" | sed 's/.*"url":"\([^"]*\)".*/\1/' | head -n1)
 
-BASE_URL="https://www.bing.com$IMG_PATH"
+BASE_URL="https://www.bing.com${IMG_PATH}"
+
+echo "Base URL: $BASE_URL"
 
 # Extract original filename from id= parameter
-ORIGINAL_FILENAME=$(echo "$BASE_URL" | sed -n 's/.*id=\([^&]*\).*/\1/p')
+ORIGINAL_FILENAME=$(echo "$BASE_URL" | sed -n 's/.*[?&]id=\([^&]*\).*/\1/p')
 
 if [ -z "$ORIGINAL_FILENAME" ]; then
-    echo "Failed to extract filename."
+    echo "Failed to extract filename from URL: $BASE_URL"
     exit 1
 fi
 
-# Build UHD filename correctly
-UHD_FILENAME=$(echo "$ORIGINAL_FILENAME" | sed 's/_[0-9]*x[0-9]*\.jpg$/_UHD.jpg/')
+echo "Original filename: $ORIGINAL_FILENAME"
 
-UHD_URL=$(echo "$BASE_URL" | sed "s|$ORIGINAL_FILENAME|$UHD_FILENAME|")
+# Build UHD filename
+UHD_FILENAME=$(echo "$ORIGINAL_FILENAME" | sed 's/_[0-9]*x[0-9]*\.jpg$/_UHD.jpg/')
+UHD_URL="https://www.bing.com/th?id=${UHD_FILENAME}"
 ORIGINAL_URL="$BASE_URL"
 
-DEST="$OUTPUT_DIR/$ORIGINAL_FILENAME"
+echo "UHD filename: $UHD_FILENAME"
 
-if [ -f "$DEST" ]; then
-    echo "Already downloaded: $ORIGINAL_FILENAME"
+# Check if already downloaded (check both possible filenames)
+if [ -f "$OUTPUT_DIR/$UHD_FILENAME" ]; then
+    echo "Already downloaded (UHD): $UHD_FILENAME"
+    ln -sf "$OUTPUT_DIR/$UHD_FILENAME" "$OUTPUT_DIR/latest.jpg"
     exit 0
 fi
 
-echo "Testing UHD availability..."
+if [ -f "$OUTPUT_DIR/$ORIGINAL_FILENAME" ]; then
+    echo "Already downloaded: $ORIGINAL_FILENAME"
+    ln -sf "$OUTPUT_DIR/$ORIGINAL_FILENAME" "$OUTPUT_DIR/latest.jpg"
+    exit 0
+fi
 
-# Check if UHD exists and is valid
-if wget -q --spider "$UHD_URL"; then
+# Function to test if a URL returns a valid large image
+test_valid_image() {
+    URL="$1"
+    TMPFILE=$(mktemp)
+
+    wget -q -L "$URL" -O "$TMPFILE" 2>/dev/null || { rm -f "$TMPFILE"; return 1; }
+
+    SIZE=$(wc -c < "$TMPFILE")
+    rm -f "$TMPFILE"
+
+    if [ "$SIZE" -gt "$MIN_SIZE" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+echo "Testing UHD availability..."
+if test_valid_image "$UHD_URL"; then
     echo "UHD available. Downloading..."
     FINAL_URL="$UHD_URL"
     FINAL_FILENAME="$UHD_FILENAME"
@@ -52,20 +79,21 @@ fi
 
 DEST="$OUTPUT_DIR/$FINAL_FILENAME"
 
-echo "Downloading: $FINAL_URL"
-
+echo "Downloading from: $FINAL_URL"
 wget -q -L "$FINAL_URL" -O "$DEST" || {
     echo "Download failed."
+    rm -f "$DEST"
     exit 1
 }
 
-# Verify file is not empty
-if [ ! -s "$DEST" ]; then
-    echo "Downloaded file is empty."
+# Verify downloaded file size
+SIZE=$(wc -c < "$DEST")
+if [ "$SIZE" -lt "$MIN_SIZE" ]; then
+    echo "Downloaded file too small (${SIZE} bytes), likely an error page."
     rm -f "$DEST"
     exit 1
 fi
 
-ln -sf "$DEST" "$OUTPUT_DIR/latest.jpg"
+echo "Download complete: $DEST (${SIZE} bytes)"
 
-echo "Saved $DEST"
+ln -sf "$DEST" "$OUTPUT_DIR/latest.jpg"

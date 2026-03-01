@@ -17,7 +17,7 @@ spec:
               imagePullPolicy: IfNotPresent
               env:
                 - name: MARKET
-                  value: "en-US"
+                  value: "en-IN"
                 - name: OUTPUT_DIR
                   value: "/wallpapers"
               volumeMounts:
